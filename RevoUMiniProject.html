@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Sour+Gummy:wght@400;700&display=swap" rel="stylesheet" />
+  <title>Daftar Tugas</title>
+</head>
+<body style="font-family:'Sour Gummy';" class="bg-pink-300 relative pt-[100px]">
+
+<img src="https://www.pngkey.com/png/full/326-3268528_a-technological-breakthrough-in-roofing-oc-pink-panther.png"
+     class="absolute left-1/2 transform -translate-x-1/2 -translate-y-1/2 pb-52 pt-14 pointer-events-none mt-[160px]" />
+
+ <main class="bg-pink-600 rounded-2xl p-6 max-w-xl mx-auto mt-32 md:mt-40 mb-10">
+    <div class="bg-pink-50 rounded-xl p-6">
+      <h1 class="text-pink-500 text-3xl font-bold text-center mb-8">DAFTAR TUGAS</h1>
+
+      <div class="flex flex-col sm:flex-row items-center gap-3 mb-6">
+        <input id="taskInput" type="text" placeholder="Masukkan tugas..."
+          class="w-full px-4 py-2 border border-pink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-300" />
+        <input id="dateInput" type="date"
+          class="w-full sm:w-auto px-4 py-2 border border-pink-300 rounded-md focus:outline-none focus:ring-2 focus:ring-pink-300" />
+        <button id="tambah"
+          class="w-full sm:w-auto bg-pink-500 text-white px-4 py-2 rounded-md hover:bg-pink-600 transition">Tambah</button>
+      </div>
+
+      <div class="flex justify-between items-center text-pink-600 px-4 mb-6">
+        <div class="relative inline-block">
+          <button id="filterBtn" class="px-5 py-1 hover:underline rounded-md bg-pink-200">Filter</button>
+          <div id="filterOptions" class="absolute hidden mt-2 w-48 bg-white border border-pink-300 rounded-md shadow z-10">
+            <button onclick="filterBy('semua')" class="block w-full text-left px-4 py-2 hover:bg-pink-100">Semua Tugas</button>
+            <button onclick="filterBy('terdekat')" class="block w-full text-left px-4 py-2 hover:bg-pink-100">Deadline Terdekat</button>
+            <button onclick="filterBy('terlama')" class="block w-full text-left px-4 py-2 hover:bg-pink-100">Deadline Terlama</button>
+            <button onclick="filterBy('hari-ini')" class="block w-full text-left px-4 py-2 hover:bg-pink-100">Deadline Hari Ini</button>
+            <button onclick="filterBy('lewat')" class="block w-full text-left px-4 py-2 hover:bg-pink-100">Sudah Lewat</button>
+          </div>
+        </div>
+
+        <button id="hapusSemua" class="px-5 py-1 hover:underline rounded-md bg-pink-200">Hapus Semua</button>
+      </div>
+
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-pink-800 border border-collapse border-pink-300">
+          <thead class="bg-pink-300 text-white">
+            <tr>
+              <th class="py-2 px-4 text-center">TUGAS</th>
+              <th class="py-2 px-4 text-center">BATAS WAKTU</th>
+              <th class="py-2 px-4 text-center">STATUS</th>
+              <th class="py-4 px-4 text-center">AKSI</th>
+            </tr>
+          </thead>
+          <tbody id="tugasBody">
+            <tr>
+              <td colspan="4" class="text-center py-4 text-pink-500">Tidak ada tugas ditemukan</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <footer class="text-white text-center py-4">
+    &copy; 2025 Mini Project RevoU | Dibuat oleh Puan Akeyla
+  </footer>
+
+  <script>
+    const taskInput = document.getElementById('taskInput');
+    const dateInput = document.getElementById('dateInput');
+    const tambahBtn = document.getElementById('tambah');
+    const hapusSemuaBtn = document.getElementById('hapusSemua');
+    const filterBtn = document.getElementById('filterBtn');
+    const filterOptions = document.getElementById('filterOptions');
+    const tableBody = document.getElementById('tugasBody');
+
+    let tugasList = JSON.parse(localStorage.getItem('tugasList')) || [];
+
+    function simpanKeLocalStorage() {
+      localStorage.setItem('tugasList', JSON.stringify(tugasList));
+    }
+
+    function formatDate(dateString) {
+      const options = { year: 'numeric', month: 'long', day: 'numeric' };
+      return new Date(dateString).toLocaleDateString('id-ID', options);
+    }
+
+    function getStatus(tanggal) {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const deadline = new Date(tanggal);
+      deadline.setHours(0, 0, 0, 0);
+      
+      const diffTime = deadline - today;
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) return { text: 'Hari Ini!', color: 'bg-red-500' };
+      if (diffDays < 0) return { text: 'Lewat ' + Math.abs(diffDays) + ' hari', color: 'bg-gray-500' };
+      if (diffDays === 1) return { text: 'Besok', color: 'bg-orange-500' };
+      if (diffDays <= 3) return { text: diffDays + ' hari lagi', color: 'bg-yellow-500' };
+      return { text: diffDays + ' hari lagi', color: 'bg-green-500' };
+    }
+
+    function renderTugas(data = tugasList) {
+      tableBody.innerHTML = '';
+
+      if (data.length === 0) {
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="4" class="text-center py-4 text-pink-500">Tidak ada tugas ditemukan</td>
+          </tr>
+        `;
+        return;
+      }
+
+      data.forEach((tugas, index) => {
+        const status = getStatus(tugas.tanggal);
+        const row = document.createElement('tr');
+        row.className = 'border-b border-pink-300';
+        row.innerHTML = `
+          <td class="py-2 px-4">${tugas.nama}</td>
+          <td class="py-2 px-4">${formatDate(tugas.tanggal)}</td>
+          <td class="py-2 px-4">
+            <span class="text-white text-xs px-2 py-1 rounded-full whitespace-nowrap ${status.color}">
+              ${status.text}
+            </span>
+          </td>
+          <td class="py-2 px-4 text-center">
+            <div class="flex justify-center gap-2">
+              <button 
+                onclick="hapusTugas(${index})"
+                class="text-sm text-white bg-red-500 hover:bg-red-600 px-2 py-1 rounded-md"
+              >
+                Hapus
+              </button>
+            </div>
+          </td>
+        `;
+        tableBody.appendChild(row);
+      });
+    }
+
+    function tambahTugas() {
+      const nama = taskInput.value.trim();
+      const tanggal = dateInput.value;
+
+      if (nama === '' || tanggal === '') {
+        alert('Tolong isi nama tugas dan tanggal.');
+        return;
+      }
+
+      tugasList.push({ nama, tanggal });
+      simpanKeLocalStorage();
+      renderTugas();
+      taskInput.value = '';
+      dateInput.value = '';
+    }
+
+    function hapusTugas(index) {
+      if (confirm('Yakin ingin menghapus tugas ini?')) {
+        tugasList.splice(index, 1);
+        simpanKeLocalStorage();
+        renderTugas();
+      }
+    }
+
+    function hapusSemua() {
+      if (confirm('Yakin ingin menghapus semua tugas?')) {
+        tugasList = [];
+        simpanKeLocalStorage();
+        renderTugas();
+      }
+    }
+
+    function filterBy(filterType) {
+  let filtered = [...tugasList];
+  
+    const normalizeDate = (dateStr) => {
+      const date = new Date(dateStr);
+      date.setHours(0, 0, 0, 0);
+      return date;
+    };
+
+    const today = normalizeDate(new Date());
+
+    switch(filterType) {
+      case 'semua':
+        break;
+      case 'terdekat':
+        filtered = filtered.filter(tugas => {
+          return normalizeDate(tugas.tanggal) >= today;
+        });
+        filtered.sort((a, b) => normalizeDate(a.tanggal) - normalizeDate(b.tanggal));
+        break;
+      case 'terlama':
+        filtered = filtered.filter(tugas => {
+          return normalizeDate(tugas.tanggal) >= today;
+        });
+        filtered.sort((a, b) => normalizeDate(b.tanggal) - normalizeDate(a.tanggal));
+        break;
+      case 'hari-ini':
+        filtered = filtered.filter(tugas => {
+          return normalizeDate(tugas.tanggal).getTime() === today.getTime();
+        });
+        break;
+      case 'lewat':
+        filtered = filtered.filter(tugas => {
+          return normalizeDate(tugas.tanggal) < today;
+        });
+        break;
+    }
+  
+    renderTugas(filtered);
+    filterOptions.classList.add('hidden');
+  }
+
+    tambahBtn.addEventListener('click', tambahTugas);
+    hapusSemuaBtn.addEventListener('click', hapusSemua);
+    
+    filterBtn.addEventListener('click', () => {
+      filterOptions.classList.toggle('hidden');
+    });
+    
+    document.addEventListener('click', (e) => {
+      if (!filterBtn.contains(e.target) && !filterOptions.contains(e.target)) {
+        filterOptions.classList.add('hidden');
+      }
+    });
+
+    taskInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        tambahTugas();
+      }
+    });
+
+    dateInput.valueAsDate = new Date();
+
+    renderTugas();
+  </script>
+</body>
+</html>
